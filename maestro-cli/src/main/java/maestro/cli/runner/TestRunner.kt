@@ -50,6 +50,7 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: Path?,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -65,14 +66,14 @@ object TestRunner {
             val commands = YamlCommandReader.readCommands(flowFile.toPath())
                 .withEnv(updatedEnv)
 
-            val flowName = YamlCommandReader.getConfig(commands)?.name
-            if (flowName != null) {
-                aiOutput = aiOutput.copy(flowName = flowName)
-            }
+            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+            aiOutput = aiOutput.copy(flowName = flowName)
+
+            logger.info("Running flow ${flowFile.name}...")
 
             runBlocking {
                 MaestroCommandRunner.runCommands(
-                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                    flowName = flowName,
                     maestro = maestro,
                     device = device,
                     view = resultView,
@@ -81,6 +82,7 @@ object TestRunner {
                     aiOutput = aiOutput,
                     analyze = analyze,
                     apiKey = apiKey,
+                    testOutputDir = testOutputDir,
                 )
             }
         }
@@ -121,6 +123,7 @@ object TestRunner {
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
+        testOutputDir: Path?
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n", useEmojis = !EnvUtils.isWindows())
 
@@ -167,6 +170,7 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
+                                    testOutputDir = testOutputDir
                                 )
                             }
                         }.get()
