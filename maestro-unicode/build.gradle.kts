@@ -11,7 +11,7 @@ dependencies {
     implementation(project(":maestro-utils"))
     api(libs.dadb)
     api(libs.kotlinx.coroutines.core)
-    api(libs.slf4j)
+    api(libs.logging.sl4j)
     api(libs.jackson.module.kotlin)
     
     testImplementation(libs.junit.jupiter.api)
