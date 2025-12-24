@@ -14,6 +14,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessagePolymorphicSerializer
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.McpJson
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +54,7 @@ class HttpServerTransport(
             routing {
                 post("/rpc") {
                     val rawMessage = call.receiveText()
-                    val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(rawMessage) }
+                    val message = runCatching { McpJson.decodeFromString(JSONRPCMessagePolymorphicSerializer, rawMessage) }
                         .onFailure { cause ->
                             _onError(IllegalArgumentException("Invalid MCP JSON-RPC payload", cause))
                         }
@@ -99,7 +100,7 @@ class HttpServerTransport(
     }
 
     override suspend fun send(message: JSONRPCMessage) {
-        val serialized = withContext(Dispatchers.Default) { McpJson.encodeToString(message) }
+        val serialized = withContext(Dispatchers.Default) { McpJson.encodeToString(JSONRPCMessagePolymorphicSerializer, message) }
         if (!outgoing.tryEmit(serialized)) {
             val error = IllegalStateException("Unable to deliver MCP message over SSE (buffer full or no active subscribers)")
             System.err.println("MCP HTTP transport: ${error.message}")
