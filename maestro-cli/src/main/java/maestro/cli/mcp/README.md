@@ -26,6 +26,14 @@ maestro mcp
 
 This launches the MCP server via the Maestro CLI, exposing Maestro tools over STDIO for LLM agents and other clients.
 
+To expose the server over HTTP with Server-Sent Events (SSE) streaming (suitable for Streamable HTTP clients), run:
+
+```
+maestro mcp --http --http-port 7090
+```
+
+Requests should be POSTed to `/rpc`, and responses/notifications are streamed from `/events` as SSE `data:` payloads.
+
 ## Developing
 
 ## Extending the MCP Server
@@ -61,4 +69,3 @@ The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk
 
 - **Shared Abstractions:** If more MCP-related code or other integrations are needed, consider extracting shared abstractions (e.g., session management, tool interfaces) into a `common` or `core` module. This would allow for a clean separation and potentially enable a standalone `maestro-mcp` module.
 - **Streamable HTTP:** This MCP server currently only uses STDIO for communication.
-
