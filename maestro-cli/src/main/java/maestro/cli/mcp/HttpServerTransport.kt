@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -32,6 +33,11 @@ class HttpServerTransport(
     private val host: String = "0.0.0.0",
     private val port: Int = 7090,
 ) : AbstractTransport() {
+
+    companion object {
+        private const val DEFAULT_GRACE_PERIOD_MS = 500L
+        private const val DEFAULT_STOP_TIMEOUT_MS = 5000L
+    }
 
     private val started = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -48,8 +54,8 @@ class HttpServerTransport(
                 post("/rpc") {
                     val rawMessage = call.receiveText()
                     val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(rawMessage) }
-                        .onFailure {
-                            _onError(it)
+                        .onFailure { cause ->
+                            _onError(IllegalArgumentException("Invalid MCP JSON-RPC payload", cause))
                         }
                         .getOrNull()
 
@@ -66,7 +72,10 @@ class HttpServerTransport(
                         }
                     }
 
-                    call.respond(HttpStatusCode.Accepted)
+                    call.respond(
+                        HttpStatusCode.Accepted,
+                        "Message accepted; responses and notifications stream via /events"
+                    )
                 }
 
                 get("/events") {
@@ -81,7 +90,7 @@ class HttpServerTransport(
                         try {
                             awaitCancellation()
                         } finally {
-                            job.cancel()
+                            job.cancelAndJoin()
                         }
                     }
                 }
@@ -92,13 +101,15 @@ class HttpServerTransport(
     override suspend fun send(message: JSONRPCMessage) {
         val serialized = withContext(Dispatchers.Default) { McpJson.encodeToString(message) }
         if (!outgoing.tryEmit(serialized)) {
-            outgoing.emit(serialized)
+            val error = IllegalStateException("Unable to deliver MCP message over SSE (buffer full or no active subscribers)")
+            System.err.println("MCP HTTP transport: ${error.message}")
+            _onError(error)
         }
     }
 
     override suspend fun close() {
         if (!started.compareAndSet(true, false)) return
-        engine?.stop(gracePeriodMillis = 500, timeoutMillis = 5000)
+        engine?.stop(gracePeriodMillis = DEFAULT_GRACE_PERIOD_MS, timeoutMillis = DEFAULT_STOP_TIMEOUT_MS)
         scope.cancel()
         _onClose()
     }

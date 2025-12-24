@@ -68,4 +68,4 @@ The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk
 ### Potential Future Improvements
 
 - **Shared Abstractions:** If more MCP-related code or other integrations are needed, consider extracting shared abstractions (e.g., session management, tool interfaces) into a `common` or `core` module. This would allow for a clean separation and potentially enable a standalone `maestro-mcp` module.
-- **Streamable HTTP:** This MCP server currently only uses STDIO for communication.
+- **Transport selection:** STDIO remains the default transport, but HTTP/SSE streaming can be enabled via the `--http` flag when running `maestro mcp`.
