@@ -26,9 +26,14 @@ import maestro.cli.mcp.tools.InspectViewHierarchyTool
 import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.QueryDocsTool
 import maestro.cli.util.WorkingDirectory
+import maestro.cli.mcp.HttpServerTransport
 
 // Main function to run the Maestro MCP server
-fun runMaestroMcpServer() {
+fun runMaestroMcpServer(
+    useHttpTransport: Boolean = false,
+    httpHost: String = "0.0.0.0",
+    httpPort: Int = 7090,
+) {
     // Disable all console logging to prevent interference with JSON-RPC communication
     LogConfig.configure(logFileName = null, printToConsole = false)
     
@@ -66,13 +71,21 @@ fun runMaestroMcpServer() {
     ))
 
 
-    // Create a transport using standard IO for server communication
-    val transport = StdioServerTransport(
-        System.`in`.asSource().buffered(),
-        System.out.asSink().buffered()
-    )
+    val transport = if (useHttpTransport) {
+        HttpServerTransport(httpHost, httpPort)
+    } else {
+        // Create a transport using standard IO for server communication
+        StdioServerTransport(
+            System.`in`.asSource().buffered(),
+            System.out.asSink().buffered()
+        )
+    }
 
-    System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
+    if (useHttpTransport) {
+        System.err.println("MCP Server (HTTP): Listening on http://$httpHost:$httpPort (SSE at /events). Working directory: ${WorkingDirectory.baseDir}")
+    } else {
+        System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
+    }
 
     runBlocking {
         server.connect(transport)
